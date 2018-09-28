@@ -1,17 +1,15 @@
 /*eslint-disable no-unused-vars, no-param-reassign*/
 
-///////////////////////////////////////
-
 var zs = require('zerosense');
 
-var ArrayLeaker = require('zerosense/ArrayLeaker');
 var Logger = require('zerosense/Logger');
 var MemoryReader = require('zerosense/MemoryReader');
 var Searcher = require('zerosense/Searcher');
 var Offsets = require('zerosense/Offsets');
 var Util = require('zerosense/Util');
+var ZsArray = require('zerosense/ZsArray');
 
-var Helper = require('zerosense/helper/Helper');
+var ZsHelper = require('zerosense/helper/ZsHelper');
 var FileSystem = require('zerosense/helper/FileSystem');
 
 
@@ -24,7 +22,7 @@ var logger = null;
 		
 		zs.environment = {};
 		zs.environment.ps3 = ua.indexOf("PLAYSTATION 3") !== -1;
-		zs.environment.firmware = environment.ps3 ? ua.substr(ua.indexOf("PLAYSTATION 3") + 14, 4)
+		zs.environment.firmware = zs.environment.ps3 ? ua.substr(ua.indexOf("PLAYSTATION 3") + 14, 4)
 				: "0.00";
 		zs.environment.dex = true;
 	
@@ -53,11 +51,13 @@ var logger = null;
 		zs.searcher = new Searcher(zs.memoryReader);
 		zs.offsets = Offsets.get(zs.environment);
 		
-		var buttonFolderTest = document.getElementById("buttonFolderTest");
-		buttonFolderTest.addEventListener("click", () => folderTest());
-		
 		Promise.resolve()
-			.then(() => Helper.init());
+			.then(() => ZsHelper.initZsArray())
+			.then(() => {
+				var buttonFolderTest = document.getElementById("buttonFolderTest");
+				buttonFolderTest.addEventListener("click", () => folderTest());	
+			})
+			.catch((error) => logger.error(`Error while starting. ${error}`));;
 	} catch (e) {
 		if (zs.environment.ps3) {
 			alert(e);
@@ -66,7 +66,9 @@ var logger = null;
 	}	
 })();
 
+
 ///////////////////////////////////////
+
 
 function folderTest() {
 	logger.info("Folder test...");
@@ -101,3 +103,4 @@ function folderTest() {
 		.then(() => logger.info("Folder test done."))
 		.catch((error) => logger.error(`Error while running folder test. ${error}`));
 }
+
