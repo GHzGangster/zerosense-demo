@@ -30,9 +30,21 @@ button, input {
 	margin-bottom: 10px;
 }
 
+#files {
+	border: 1px solid #ccc;
+	padding: 10px;
+	overflow: scroll;
+	height: 400px;
+	margin-bottom: 20px;
+}
+
+#files a {
+	color: inherit;
+}
+
 #log {
 	border: 1px solid #ccc;
 	padding: 10px;
 	overflow: scroll;
-	height: 550px;
+	height: 150px;
 }

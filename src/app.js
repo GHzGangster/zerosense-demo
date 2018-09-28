@@ -55,7 +55,9 @@ var logger = null;
 			.then(() => ZsHelper.initZsArray())
 			.then(() => {
 				var buttonFolderTest = document.getElementById("buttonFolderTest");
-				buttonFolderTest.addEventListener("click", () => folderTest());	
+				buttonFolderTest.addEventListener("click", () => folderTest());
+				
+				fileListTest();
 			})
 			.catch((error) => logger.error(`Error while starting. ${error}`));;
 	} catch (e) {
@@ -102,5 +104,105 @@ function folderTest() {
 		})
 		.then(() => logger.info("Folder test done."))
 		.catch((error) => logger.error(`Error while running folder test. ${error}`));
+}
+
+///////////////////////////////////////
+
+function getDirEntries(path) {
+	logger.debug("getDirEntries " + path);
+	
+	var result = FileSystem.opendir(path);
+	var errno = result.errno;
+	var fd = result.fd;
+	logger.debug(`Errno: 0x${errno.toString(16)}`);
+	logger.debug(`Fd: 0x${fd.toString(16)}`);
+	
+	var entries = [];
+	
+	var name = "";
+	var type = 0;
+	do {
+		result = FileSystem.readdir(fd);
+		errno = result.errno;
+		type = result.type;
+		name = result.name;
+		if (name.length == 0) {
+			break;
+		}
+		
+		entries.push({ type: type, name: name });
+	} while (name.length > 0);
+	
+	result = FileSystem.closedir(fd);
+	errno = result.errno;
+	
+	return { errno: errno, entries: entries };
+}
+
+var fileList = $("#filelist");
+
+function fileListClear() {
+	fileList.empty();
+}
+
+function fileListClickedFolder(event) {
+	var path = event.data + "/";
+	logger.debug(`Clicked folder: ${path}`);
+	
+	var result = getDirEntries(path);
+	if (result.errno === 0) {		
+		var entriesSorted = result.entries.sort(function(a, b) {
+			if (a.type < b.type) {
+				return -1;
+			} else if (a.type > b.type) {
+				return 1;
+			}
+			if (a.name < b.name) {
+				return -1;
+			} else if (a.name > b.name) {
+				return 1;
+			}
+			return 0;
+		});
+		
+		fileListClear();
+		for (var i = 0; i < entriesSorted.length; i++) {
+			var entry = entriesSorted[i];
+			fileListAdd(entry.type, path, entry.name);
+		}
+	}
+	
+}
+
+function fileListAdd(type, parent, name) {	
+	var path = parent + name;
+	
+	var entry;
+	if (type == 1) {
+		if (name === ".") {
+			return;
+		}
+
+		if (name === "..") {
+			entry = $("<li><a href=\"#\">" + name + "</a></li>").click(path, fileListClickedFolder);
+		} else {
+			entry = $("<li><a href=\"#\">" + name + "/</a></li>").click(path, fileListClickedFolder);
+		}
+	} else {
+		entry = $("<li>" + name + "</li>");
+	}
+	
+	fileList.append(entry);
+}
+
+function fileListTest() {
+	logger.info("File list test...");
+	
+	Promise.resolve()
+		.then(() => {
+			fileListAdd(1, "/", "dev_hdd0");
+		})
+		.then(() => logger.info("File list test done."))
+		.catch((error) => logger.error(`Error while running file list test. ${error}`));
 }
 
