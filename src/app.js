@@ -71,6 +71,40 @@ var logger = null;
 
 ///////////////////////////////////////
 
+function dtime(message) {
+	logger.debug(new Date().getTime() + " - " + message);
+}
+
+var ChainBuilder = require('zerosense/ChainBuilder');
+
+function opendir(strpath) {
+	dtime("opendir");
+	
+	var chain = new ChainBuilder(zs.offsets, zs.addrGtemp)
+		.addDataStr("path", Util.ascii(strpath))
+		.addDataInt32("errno")
+		.addDataInt32("fd")
+		.syscall(0x325, "path", "fd")
+		.storeR3("errno")
+		.create();
+	
+	dtime("created chain");
+	
+	// This is taking a long time...
+	// Let's see if we can make this faster.
+	var c = chain.prepare(zs.zsArray);
+	
+	dtime("prepared chain");
+	
+	//c.execute();
+	
+	dtime("executed chain");
+	
+	//var errno = chain.getDataInt32("errno");
+	//var fd = chain.getDataInt32("fd");
+	
+	return { errno: 0, fd: 0 };
+}
 
 function folderTest() {
 	logger.info("Folder test...");
@@ -78,32 +112,15 @@ function folderTest() {
 	Promise.resolve()
 		.then(() => {
 			var path = "/dev_hdd0/game/BLUS30109/USRDIR/dlc/";
-			var result = FileSystem.opendir(path);
+			var result = opendir(path);
 			var errno = result.errno;
-			var fd = result.fd;
-			logger.debug(`Errno: 0x${errno.toString(16)}`);
-			logger.debug(`Fd: 0x${fd.toString(16)}`);
-			
-			var name = "";
-			var type = 0;
-			do {
-				result = FileSystem.readdir(fd);
-				errno = result.errno;
-				type = result.type;
-				name = result.name;
-				if (name.length == 0) {
-					break;
-				}
-				
-				logger.debug(`File: ${type.toString(16)} ${name}`);
-			} while (name.length > 0);
-			
-			result = FileSystem.closedir(fd);
-			errno = result.errno;
 			logger.debug(`Errno: 0x${errno.toString(16)}`);
 		})
 		.then(() => logger.info("Folder test done."))
-		.catch((error) => logger.error(`Error while running folder test. ${error}`));
+		.catch((error) => {
+			logger.error(`Error while running folder test. ${error}`);
+			console.error(error);
+		});
 }
 
 ///////////////////////////////////////
@@ -126,7 +143,7 @@ function getDirEntries(path) {
 		errno = result.errno;
 		type = result.type;
 		name = result.name;
-		if (name.length == 0) {
+		if (name.length === 0) {
 			break;
 		}
 		
@@ -148,6 +165,9 @@ function fileListClear() {
 function fileListClickedFolder(event) {
 	var path = event.data + "/";
 	logger.debug(`Clicked folder: ${path}`);
+	if (path.substr(path.length - 3) === "../") {
+		path = path.substr(0, path.substr(0, path.length - 4).lastIndexOf("/") + 1)
+	}
 	
 	var result = getDirEntries(path);
 	if (result.errno === 0) {		
@@ -178,7 +198,7 @@ function fileListAdd(type, parent, name) {
 	var path = parent + name;
 	
 	var entry;
-	if (type == 1) {
+	if (type === 1) {
 		if (name === ".") {
 			return;
 		}
@@ -200,7 +220,7 @@ function fileListTest() {
 	
 	Promise.resolve()
 		.then(() => {
-			fileListAdd(1, "/", "dev_hdd0");
+			fileListAdd(1, "", "");
 		})
 		.then(() => logger.info("File list test done."))
 		.catch((error) => logger.error(`Error while running file list test. ${error}`));
