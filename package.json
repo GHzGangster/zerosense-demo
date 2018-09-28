@@ -8,7 +8,7 @@
     "babel-polyfill": "^6.26.0",
     "connect": "^3.6.6",
     "serve-static": "^1.13.2",
-    "zerosense": "github:ghzgangster/zerosense#framework"
+    "zerosense": "github:ghzgangster/zerosense#master"
   },
   "devDependencies": {
     "babel-core": "^6.26.0",
@@ -23,7 +23,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "update:zerosense": "npm install github:ghzgangster/zerosense#framework",
+    "update:zerosense": "npm install github:ghzgangster/zerosense#master",
+    "update:zerosense-dev": "npm install github:ghzgangster/zerosense#dev",
     "build": "webpack",
     "start": "node index.js"
   },
