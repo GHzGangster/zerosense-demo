@@ -23,6 +23,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "update:zerosense": "npm install github:ghzgangster/zerosense#framework",
     "build": "webpack",
     "start": "node index.js"
   },

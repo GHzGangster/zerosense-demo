@@ -8,7 +8,7 @@ module.exports = {
 		path: path.resolve(__dirname, "web"),
 		publicPath: "/web/"
 	},
-	plugins: [
+	/*plugins: [
 		new webpack.optimize.UglifyJsPlugin({
 			mangleProperties: {
 		    	screw_ie8: false,
@@ -20,7 +20,7 @@ module.exports = {
 				screw_ie8: false
 			}
 		})
-	],
+	],*/
 	module: {
 		rules: [
 			{
