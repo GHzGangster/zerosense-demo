@@ -19,20 +19,14 @@ var logger = null;
 
 
 (function() {
-	try {
+	try {		
+		var ua = navigator.userAgent;
+		
 		zs.environment = {};
-		
-		//var ua = navigator.userAgent;
-		//environment.ps3 = ua.indexOf("PLAYSTATION 3") !== -1;
-		//environment.firmware = environment.ps3 ? ua.substr(ua.indexOf("PLAYSTATION 3") + 14, 4)
-		//		: "0.00";
-		//environment.dex = true;
-		
-		if (true) {
-			zs.environment.ps3 = true;
-			zs.environment.firmware = "4.81";
-			zs.environment.dex = true;
-		}		
+		zs.environment.ps3 = ua.indexOf("PLAYSTATION 3") !== -1;
+		zs.environment.firmware = environment.ps3 ? ua.substr(ua.indexOf("PLAYSTATION 3") + 14, 4)
+				: "0.00";
+		zs.environment.dex = true;
 	
 		var log = document.getElementById("log");
 		if (log === null) {
