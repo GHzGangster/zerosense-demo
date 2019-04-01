@@ -12,6 +12,8 @@ var ZsArray = require('zerosense/ZsArray');
 var ZsHelper = require('zerosense/helper/ZsHelper');
 var FileSystem = require('zerosense/helper/FileSystem');
 
+var HelperTest = require('./HelperTest.js');
+
 
 var logger = null;
 
@@ -24,7 +26,7 @@ var logger = null;
 		zs.environment.ps3 = ua.indexOf("PLAYSTATION 3") !== -1;
 		zs.environment.firmware = zs.environment.ps3 ? ua.substr(ua.indexOf("PLAYSTATION 3") + 14, 4)
 				: "0.00";
-		zs.environment.dex = true;
+		zs.environment.dex = false;
 	
 		var log = document.getElementById("log");
 		if (log === null) {
@@ -56,7 +58,7 @@ var logger = null;
 			.then(() => {
 				var buttonFolderTest = document.getElementById("buttonFolderTest");
 				buttonFolderTest.addEventListener("click", () => folderTest());
-				
+		          
 				startFileManager();
 			})
 			.catch((error) => logger.error(`Error while starting. ${error}`));;
@@ -74,9 +76,26 @@ var logger = null;
 function folderTest() {
 	logger.info("Folder test...");
 	
+	/*Promise.resolve()
+		.then(() => {
+			var result = HelperTest.malloc(0x10000);
+			var ptr = result.ptr;
+			logger.debug(`ptr: 0x${ptr.toString(16)}`);
+			
+			HelperTest.free(ptr);
+			logger.debug(`freed`);
+		})
+		.then(() => logger.info("Folder test done."))
+		.catch((error) => {
+			logger.error(`Error while running folder test. ${error}`);
+			console.error(error);
+		});*/
+	
 	Promise.resolve()
 		.then(() => {
-			
+		    var result = FileSystem.chmod("/dev_usb000/PIC1.PNG", 0o777);
+        	var errno = result.errno;
+        	logger.debug(`Errno: 0x${errno.toString(16)}`);
 		})
 		.then(() => logger.info("Folder test done."))
 		.catch((error) => {
@@ -114,7 +133,7 @@ function fm_goToPath(path) {
 	logger.debug(`fm_goToPath: ${path}`);
 	
 	if (path.substr(path.length - 3) === "../") {
-		path = path.substr(0, path.substr(0, path.length - 4).lastIndexOf("/") + 1)
+		path = path.substr(0, path.substr(0, path.length - 4).lastIndexOf("/") + 1);
 	}
 	
 	var result = fm_getDirEntries(path);
@@ -189,11 +208,20 @@ function fm_onEntryOptionsClicked(event) {
 }
 
 function fm_onEntryOptionCopy(event) {
-	var name = event.data;
-	var pathFrom = fm_path + name;
-	var pathTo = "/dev_usb000/" + name;
-	
-	fileCopy(pathFrom, pathTo);
+	Promise.resolve()
+		.then(() => {
+			logger.debug("fm_onEntryOptionCopy...")
+			
+			var name = event.data;
+			var pathFrom = fm_path + name;
+			var pathTo = "/dev_usb000/" + name;
+			
+			fileCopy(pathFrom, pathTo);
+		})
+		.then(() => logger.info("fm_onEntryOptionCopy done."))
+		.catch((error) => {
+			logger.error(`fm_onEntryOptionCopy error. ${error}`);
+		});
 }
 
 function fm_onEntryFolderClicked(event) {
@@ -201,7 +229,7 @@ function fm_onEntryFolderClicked(event) {
 	fm_goToPath(path);
 }
 
-function fm_addEntry(type, name) {
+function fm_addEntry(type, name) {    
 	if (type !== 1 || name !== ".") {
 		var elemOptions = $("<a href=\"#\">&times;</a>").click(name, fm_onEntryOptionsClicked);
 		
@@ -241,40 +269,125 @@ function fm_addEntry(type, name) {
 	}
 }
 
+/** 
+ * try to use malloc() or something similar to allocate our buffer,
+ * then read/write to that instead.
+ * 
+ * this works, but still a bit slow...
+ * if we could allocate a buffer for our read/write chains, we could
+ * reuse those as well, and it should speed up the transfer.
+ * 
+ * for some reason, reusing the chains how I initally thought doesn't work.
+ * 
+ * If we malloc them instead, there's no reason they shouldn't work.
+ */
+
 function fileCopy(fromPath, toPath) {
 	logger.debug(`File copy: ${fromPath} -> ${toPath}`);
 	
-	var result = FileSystem.open(fromPath);
+	var bufferSize = 0x8000;
+	
+	var result = HelperTest.malloc(bufferSize);
+	var bufptr = result.ptr;
+	logger.debug(`bufptr: 0x${bufptr.toString(16)}`);
+	
+	if (bufptr === 0x0) {
+	    logger.debug(`bufptr is null`);
+	    return;
+	}
+	
+	result = FileSystem.open(fromPath, 0o102, 0o777);
 	var errno = result.errno;
 	var fromFd = result.fd;
 	logger.debug(`Errno: 0x${errno.toString(16)}`);
 	logger.debug(`Fd: 0x${fromFd.toString(16)}`);
 	
-	result = FileSystem.open(toPath);
+	result = FileSystem.open(toPath, 0o102, 0o777);
 	errno = result.errno;
-	toFd = result.fd;
+	var toFd = result.fd;
 	logger.debug(`Errno: 0x${errno.toString(16)}`);
 	logger.debug(`Fd: 0x${toFd.toString(16)}`);
 	
-	result = FileSystem.read(fromFd, 0x100);
+	result = FileSystem.fstat(fromFd);
 	errno = result.errno;
-	var read = result.read;
-	var buffer = result.buffer;
-	logger.debug(`Errno: 0x${errno.toString(16)}`);
-	logger.debug(`Read: 0x${read.toString(16)}`);
-	logger.debug(`Buffer: ${Util.strhex(buffer)}`);			
+	var sb = result.sb;
 	
-	result = FileSystem.write(toFd, buffer, read);
-	errno = result.errno;
-	var written = result.written;
-	logger.debug(`Errno: 0x${errno.toString(16)}`);
-	logger.debug(`Written: 0x${written.toString(16)}`);
+	var fileSize = Util.getint32(sb, 0x28);
+	logger.debug(`filesize: 0x${fileSize.toString(16)}`);
 	
-	result = FileSystem.close(toFd);
-	errno = result.errno;
-	logger.debug(`Errno: 0x${errno.toString(16)}`);
+	var timeStart = new Date().getTime();
 	
-	result = FileSystem.close(fromFd);
-	errno = result.errno;
-	logger.debug(`Errno: 0x${errno.toString(16)}`);
+    _fileCopy({ totalRead: 0, fileSize, timeStart,
+        fromFd, toFd, bufptr, bufferSize }).then((r) => {
+        var time = new Date().getTime();
+    	time -= timeStart;
+    	logger.info(`Took ${time} ms`);
+    	
+    	result = FileSystem.close(toFd);
+    	errno = result.errno;
+    	logger.debug(`Errno: 0x${errno.toString(16)}`);
+    	
+    	result = FileSystem.close(fromFd);
+    	errno = result.errno;
+    	logger.debug(`Errno: 0x${errno.toString(16)}`);
+    	
+    	result = FileSystem.chmod(toPath, 0o777);
+    	errno = result.errno;
+    	logger.debug(`Errno: 0x${errno.toString(16)}`);
+    	
+    	HelperTest.free(bufptr);
+    	logger.debug(`freed bufptr`);
+    });	
+}
+
+function _fileCopy(r) {
+    return new Promise((resolve) => {
+        setTimeout(() => resolve(r), 1);
+    }).then((r) => {
+        if (r.totalRead < r.fileSize) {
+    		var result = FileSystem.readPtr(r.fromFd, r.bufptr, r.bufferSize);
+    		var errno = result.errno;
+    		var read = result.read;
+    		var buffer = result.buffer;
+    		logger.debug(`Errno: 0x${errno.toString(16)}`);
+    		logger.debug(`Read: 0x${read.toString(16)}`);
+    		logger.debug(`bufptr: 0x${r.bufptr.toString(16)}`);
+    		
+    		if (errno !== 0) {
+    			return r;
+    		}
+    		
+    		if (read === 0) {
+    			logger.debug(`read 0 bytes`);
+    			return r;
+    		}
+    		
+    		result = FileSystem.writePtr(r.toFd, r.bufptr, read);
+    		errno = result.errno;
+    		var written = result.written;
+    		logger.debug(`Errno: 0x${errno.toString(16)}`);
+    		logger.debug(`Written: 0x${written.toString(16)}`);
+    		
+    		if (errno !== 0) {
+    			return r;
+    		}
+    		
+    		if (written !== read) {
+    			logger.debug(`didn't write all read bytes`);
+    			return r;
+    		}
+    		
+    		r.totalRead += read;
+    		
+    		var time = new Date().getTime();
+    		time -= r.timeStart;
+    		var rate = r.totalRead / time;
+    		var rate2 = rate / 1000;
+    		logger.info(`... ${rate.toFixed(2)} kB/s    ${rate2.toFixed(2)} MB/s`);
+    		
+    		return _fileCopy(r);
+        }
+        
+        return r;
+    });
 }

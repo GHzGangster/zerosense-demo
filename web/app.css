@@ -88,3 +88,7 @@ button, input {
 	overflow-y: scroll;
 	height: 150px;
 }
+
+#debugTrigger {
+    background-color: red;
+}
